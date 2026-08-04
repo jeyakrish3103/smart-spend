@@ -62,11 +62,11 @@ app.get('/api/health', (req, res) => {
 });
 
 // Serve frontend static files in production
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static(path.join(__dirname, '../../client/dist')));
 
 // Catch-all route to serve the React app
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public', 'index.html'));
+  res.sendFile(path.join(__dirname, '../../client/dist', 'index.html'));
 });
 
 // Global error handler
