@@ -112,9 +112,59 @@ Current Daily Burn Rate: ₹${burnRate}/day`;
   return await callGemini(systemInstruction, prompt);
 }
 
+/**
+ * Reads an uploaded receipt (image/pdf) and extracts the expense details.
+ */
+async function extractReceipt(fileBuffer, mimeType) {
+  const prompt = `
+    You are an expert accountant. Extract the following details from this receipt/invoice.
+    Return ONLY a valid JSON object matching this exact structure:
+    {
+      "amount": (number, total amount spent),
+      "date": (string, ISO date format YYYY-MM-DD if possible, otherwise empty string),
+      "category": (string, guess the category: "Food & Dining", "Shopping", "Transportation", "Bills & Utilities", "Entertainment", "Health & Fitness", "Travel", or "Other"),
+      "paymentMethod": (string, e.g. "Credit Card", "Cash", "UPI", "Debit Card"),
+      "note": (string, brief description of the vendor or main items)
+    }
+    If a field cannot be found, leave it as an empty string (or 0 for amount).
+    Do NOT wrap the response in markdown blocks like \`\`\`json. Just return the raw JSON object.
+    `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-1.5-flash',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                data: fileBuffer.toString('base64'),
+                mimeType: mimeType
+              }
+            }
+          ]
+        }
+      ],
+      config: {
+        temperature: 0.1,
+        responseMimeType: 'application/json',
+      }
+    });
+
+    const text = response.text();
+    return JSON.parse(text);
+  } catch (error) {
+    console.error('AI Receipt Extraction Error:', error);
+    throw new Error('Failed to analyze the receipt.');
+  }
+}
+
 module.exports = {
   generateSummary,
   generateForecast,
   generateRecommendations,
-  generateImpulseVerdict
+  generateImpulseVerdict,
+  extractReceipt
 };

@@ -14,6 +14,7 @@ export default function ExpensesPage() {
     updateExpense,
     deleteExpense,
     exportCSV,
+    extractReceipt,
   } = useExpenses();
 
   const { categories, fetchCategories, loading: catLoading } = useCategories();
@@ -21,6 +22,7 @@ export default function ExpensesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -72,6 +74,35 @@ export default function ExpensesPage() {
     setFilters((prev) => ({ ...prev, page }));
   };
 
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const extractedData = await extractReceipt(file);
+      // Try to match the category name to an ID
+      const matchedCategory = categories.find(
+        (c) => c.name.toLowerCase() === extractedData.category?.toLowerCase()
+      );
+
+      // Pre-fill the form with AI data
+      setEditingExpense({
+        amount: extractedData.amount,
+        date: extractedData.date,
+        categoryId: matchedCategory ? matchedCategory.id : '',
+        paymentMethod: extractedData.paymentMethod,
+        note: extractedData.note,
+      });
+      setShowForm(true);
+    } catch (err) {
+      alert('Failed to extract receipt: ' + err.message);
+    } finally {
+      setUploading(false);
+      e.target.value = ''; // Reset input
+    }
+  };
+
   const handleExport = async () => {
     setExporting(true);
     try {
@@ -105,6 +136,23 @@ export default function ExpensesPage() {
             )}{' '}
             Export CSV
           </button>
+          
+          <label className="btn btn-secondary btn-sm cursor-pointer" id="upload-receipt-button">
+            {uploading ? (
+              <span className="spinner" style={{ width: 14, height: 14 }}></span>
+            ) : (
+              '🧾'
+            )}{' '}
+            AI Receipt
+            <input 
+              type="file" 
+              accept="image/*,application/pdf" 
+              className="hidden" 
+              onChange={handleFileUpload}
+              disabled={uploading}
+            />
+          </label>
+
           <button
             onClick={() => { setEditingExpense(null); setShowForm(true); }}
             className="btn btn-primary btn-sm"

@@ -1,10 +1,35 @@
 const express = require('express');
 const { body, query, validationResult } = require('express-validator');
 const { PrismaClient } = require('@prisma/client');
+const multer = require('multer');
 const auth = require('../middleware/auth');
+const aiService = require('../services/ai.service');
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+// Configure multer for memory storage (file buffer)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+});
+
+// POST /api/expenses/extract — extract expense data from receipt file
+router.post('/extract', auth, upload.single('receipt'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded.' });
+    }
+
+    const { buffer, mimetype } = req.file;
+    const extractedData = await aiService.extractReceipt(buffer, mimetype);
+    
+    res.json(extractedData);
+  } catch (error) {
+    console.error('Extraction error:', error);
+    res.status(500).json({ error: error.message || 'Failed to extract receipt data.' });
+  }
+});
 
 // GET /api/expenses — list with filters (date range, category, pagination)
 router.get('/', auth, async (req, res) => {

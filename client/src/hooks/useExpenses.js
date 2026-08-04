@@ -47,6 +47,12 @@ export function useExpenses() {
     await api.delete(`/expenses/${id}`);
   }, []);
 
+  const extractReceipt = useCallback(async (file) => {
+    const formData = new FormData();
+    formData.append('receipt', file);
+    return await api.post('/expenses/extract', formData);
+  }, []);
+
   const exportCSV = useCallback(async (filters = {}) => {
     const params = new URLSearchParams();
     if (filters.startDate) params.append('startDate', filters.startDate);
@@ -76,5 +82,6 @@ export function useExpenses() {
     updateExpense,
     deleteExpense,
     exportCSV,
+    extractReceipt,
   };
 }

@@ -29,14 +29,14 @@ async function request(endpoint, options = {}) {
   const config = {
     method,
     headers: {
-      ...(body && !raw ? { 'Content-Type': 'application/json' } : {}),
+      ...(body && !raw && !(body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
   };
 
   if (body && !raw) {
-    config.body = JSON.stringify(body);
+    config.body = body instanceof FormData ? body : JSON.stringify(body);
   }
 
   const res = await fetch(`${API_URL}${endpoint}`, config);
