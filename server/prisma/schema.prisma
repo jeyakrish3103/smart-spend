@@ -1,0 +1,232 @@
+// =============================================================================
+// SmartSpend — Prisma Schema
+// =============================================================================
+// This file defines ALL database tables (models) for the app.
+// Prisma reads this and generates:
+//   1. SQL migrations (to create/alter tables)
+//   2. A type-safe JavaScript client (PrismaClient) for querying
+//
+// KEY CONCEPTS USED:
+// - @id @default(uuid())  → Auto-generate a unique ID for each row
+// - @map("snake_case")    → JS uses camelCase, but DB columns use snake_case
+// - @@map("table_name")   → Name the actual SQL table differently from the model
+// - @relation             → Tells Prisma how models connect (foreign keys)
+// - @@id([a, b])          → Composite primary key (two columns together = unique)
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// PHASE 1 MODELS (existing)
+// =============================================================================
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  passwordHash String?   @map("password_hash")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  // Phase 1 relations
+  expenses   Expense[]
+  categories Category[]
+  budgets    Budget[]
+
+  // Phase 2 relations — a user can be in many groups, pay for group expenses, etc.
+  // These are "relation fields" — they don't create DB columns, they just tell
+  // Prisma how to JOIN tables when you query.
+  createdGroups      Group[]             @relation("GroupCreator")
+  groupMemberships   GroupMember[]
+  paidGroupExpenses  GroupExpense[]       @relation("GroupExpensePaidBy")
+  expenseSplits      GroupExpenseSplit[]
+  notifications      Notification[]
+  calendarConnection CalendarConnection?
+
+  @@map("users")
+}
+
+model Category {
+  id     String  @id @default(uuid())
+  userId String? @map("user_id")
+  name   String
+  icon   String  @default("📦")
+
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+  budgets  Budget[]
+
+  @@map("categories")
+}
+
+model Expense {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  amount        Decimal
+  categoryId    String   @map("category_id")
+  date          DateTime @default(now())
+  note          String?
+  paymentMethod String   @default("cash") @map("payment_method")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id])
+  groupExpenseSplitId String?            @unique @map("group_expense_split_id")
+  groupExpenseSplit   GroupExpenseSplit? @relation(fields: [groupExpenseSplitId], references: [id], onDelete: Cascade)
+
+
+  @@index([userId, date])
+  @@index([userId, categoryId])
+  @@map("expenses")
+}
+
+model Budget {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  categoryId String?  @map("category_id")
+  amount     Decimal
+  period     String   @default("monthly") // weekly, monthly, custom
+  startDate  DateTime @default(now()) @map("start_date")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id])
+
+  @@map("budgets")
+}
+
+// =============================================================================
+// PHASE 2 MODELS — Group Expenses (Splitwise-style)
+// =============================================================================
+
+// A group represents a collection of users sharing expenses (e.g. "Goa Trip",
+// "Roommates", "Office Lunch"). The creator is tracked for ownership.
+model Group {
+  id        String   @id @default(uuid())
+  name      String
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  creator     User           @relation("GroupCreator", fields: [createdBy], references: [id])
+  members     GroupMember[]
+  expenses    GroupExpense[]
+  settlements Settlement[]
+
+  @@map("groups")
+}
+
+// JOIN TABLE: connects Users ↔ Groups (many-to-many).
+// @@id([groupId, userId]) means the PRIMARY KEY is the combination of both columns.
+// This automatically prevents a user from being added to the same group twice —
+// the DB will reject duplicate (groupId, userId) pairs.
+model GroupMember {
+  groupId  String   @map("group_id")
+  userId   String   @map("user_id")
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@map("group_members")
+}
+
+// A shared expense within a group. One person pays ("paidBy"), but it's split
+// among multiple members. The splitMethod determines HOW it's divided:
+//   "equal"      → amount ÷ number of participants
+//   "custom"     → each person's share is specified manually
+//   "percentage" → each person's share is a % of the total
+model GroupExpense {
+  id           String   @id @default(uuid())
+  groupId      String   @map("group_id")
+  paidByUserId String   @map("paid_by_user_id")
+  amount       Decimal
+  description  String
+  splitMethod  String   @default("equal") @map("split_method")
+  date         DateTime @default(now())
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  group  Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  paidBy User               @relation("GroupExpensePaidBy", fields: [paidByUserId], references: [id])
+  splits GroupExpenseSplit[]
+
+  @@index([groupId, date])
+  @@map("group_expenses")
+}
+
+// Each row = "user X owes Y amount for expense Z".
+// For an equal 3-way split of ₹300, there would be 3 rows:
+//   { userId: A, amountOwed: 100 }
+//   { userId: B, amountOwed: 100 }
+//   { userId: C, amountOwed: 100 }
+// The payer (paidBy) also has a split row — their "owed" amount cancels out
+// against what they paid, so their net contribution is (paid - owed).
+model GroupExpenseSplit {
+  id             String  @id @default(uuid())
+  groupExpenseId String  @map("group_expense_id")
+  userId         String  @map("user_id")
+  amountOwed     Decimal @map("amount_owed")
+
+  groupExpense GroupExpense @relation(fields: [groupExpenseId], references: [id], onDelete: Cascade)
+  user         User        @relation(fields: [userId], references: [id])
+  expense      Expense?
+
+  @@map("group_expense_splits")
+}
+
+// Records when someone marks a debt as paid. No real money moves —
+// this is just bookkeeping. fromUser pays toUser the given amount.
+model Settlement {
+  id         String   @id @default(uuid())
+  groupId    String   @map("group_id")
+  fromUserId String   @map("from_user_id")
+  toUserId   String   @map("to_user_id")
+  amount     Decimal
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@map("settlements")
+}
+
+// In-app notifications. Created automatically when events happen
+// (e.g. "Alice added an expense in Goa Trip"). The frontend polls
+// for unread notifications and shows a badge count.
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  type      String   // "group_expense_added", "added_to_group", "settled_up"
+  message   String
+  data      String?  // JSON string with extra context (groupId, expenseId, etc.)
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@map("notifications")
+}
+
+// =============================================================================
+// PHASE 4 MODELS — Calendar Integration
+// =============================================================================
+
+model CalendarConnection {
+  id           String   @id @default(uuid())
+  userId       String   @unique @map("user_id")
+  provider     String   @default("google")
+  accessToken  String   @map("access_token")
+  refreshToken String   @map("refresh_token")
+  connectedAt  DateTime @default(now()) @map("connected_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("calendar_connections")
+}

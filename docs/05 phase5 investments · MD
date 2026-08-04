@@ -1,0 +1,25 @@
+# SmartSpend — Phase 5: Investment Portfolio Tracking
+
+**Context:** This is Phase 5 of a 6-phase build, built on top of Phases 1-4, already built and tested. Refer to the Foundation document (00-foundation.md) for overall tech stack. Build ONLY what's listed below.
+
+## Goal
+Let users track their investment holdings (manually entered) alongside live market data, and get AI-assisted spend-vs-invest guidance grounded in their actual spending and savings patterns.
+
+## Features to build
+
+1. **Manual holdings entry**: stocks, mutual funds, FDs — with purchase price, purchase date, quantity. Holdings are user-entered, not auto-synced from any broker (deliberate choice for v1 — see Foundation doc)
+2. **Live price fetching**:
+   - Mutual fund NAVs via mfapi.in (free, AMFI-backed — finalized, reliable)
+   - Stock prices: **not finalized yet.** The data source for real-time stock prices is still under research — do not integrate a specific stock price API in this build pass. Build the mutual fund price fetching first; stock price integration will be added once a reliable source is selected. If the UI needs to account for stock holdings in the meantime, show them with manually-entered prices only (no live sync) until this is resolved.
+3. **Performance view**: gain/loss % over today / 1 week / 6 months / 1 year, per holding and portfolio-wide
+4. **Portfolio composition chart**: asset allocation breakdown (stocks vs. mutual funds vs. FDs)
+5. **AI-assisted spend-vs-invest recommendation**: when a user asks "should I spend this on X or invest it?", combine current savings (from Phase 1 data), spending pace (from Phase 3 logic), and portfolio performance to give a reasoned response with the numbers shown — not a black-box answer. Reuse the Phase 3 pattern: compute the numbers deterministically, use the LLM only to phrase the recommendation.
+
+## Relevant data model tables
+`investments` (from Foundation doc). Reads from `expenses`, `budgets` (Phase 1) for the spend-vs-invest feature.
+
+## Definition of done
+- User can add/edit/remove holdings manually
+- Live prices populate correctly for mutual funds (via mfapi.in) 
+- Performance percentages are calculated correctly across all time periods
+- Spend-vs-invest recommendations are grounded in the user's real data, not generic advice
