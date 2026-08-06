@@ -122,7 +122,7 @@ export default function ExpensesPage() {
     <div className="space-y-6">
       {/* Page Actions */}
       <div className="flex justify-end mb-2">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <button
             onClick={handleExport}
             className="btn btn-secondary btn-sm"

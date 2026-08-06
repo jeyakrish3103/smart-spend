@@ -527,14 +527,51 @@ select.input option {
 @media (min-width: 768px) {
   .layout-main-open {
     margin-left: 256px !important;
-    width: calc(100vw - 256px) !important;
+    width: calc(100% - 256px) !important;
     flex: none !important;
   }
   .layout-main-closed {
     margin-left: 0 !important;
-    width: 100vw !important;
+    width: 100% !important;
     flex: none !important;
   }
+}
+
+@media (max-width: 767px) {
+  .layout-main-closed, .layout-main-open {
+    padding-bottom: 5rem;
+  }
+}
+
+.bottom-nav {
+  background: rgba(5, 10, 24, 0.95);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.bottom-nav-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.5rem 0.25rem;
+  color: var(--color-base-400);
+  font-size: 0.65rem;
+  text-decoration: none;
+  border-radius: 8px;
+  transition: all 0.2s;
+  flex: 1;
+  text-align: center;
+}
+
+.bottom-nav-link.active {
+  color: var(--color-accent-400);
+}
+
+.bottom-nav-link .icon {
+  font-size: 1.35rem;
+  line-height: 1;
 }
 
 .custom-layout-wrapper {

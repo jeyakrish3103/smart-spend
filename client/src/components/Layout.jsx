@@ -100,35 +100,32 @@ export default function Layout({ children }) {
         <h1 className="text-lg font-bold gradient-text" style={{ fontFamily: 'var(--font-heading)' }}>
           💰 SmartSpend
         </h1>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <NotificationBell />
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.path === '/'}
-              className="p-2.5 rounded-xl text-lg"
-              style={({ isActive }) =>
-                isActive
-                  ? {
-                      background: 'rgba(16, 185, 129, 0.15)',
-                      border: '1px solid rgba(16, 185, 129, 0.1)',
-                    }
-                  : {}
-              }
-            >
-              {item.icon}
-            </NavLink>
-          ))}
           <button
             onClick={handleLogout}
-            className="p-2.5 rounded-xl text-sm ml-1"
-            style={{ color: 'var(--color-base-400)' }}
+            className="p-1.5 rounded-lg text-xs font-medium border border-base-800"
+            style={{ color: 'var(--color-base-300)', background: 'rgba(255,255,255,0.03)' }}
           >
-            ↪
+            Logout
           </button>
         </div>
       </header>
+
+      {/* ===== Mobile Bottom Navigation ===== */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bottom-nav flex justify-between px-1 pb-3 pt-2">
+        {navItems.map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            end={item.path === '/'}
+            className={({ isActive }) => `bottom-nav-link ${isActive ? 'active' : ''}`}
+          >
+            <span className="icon">{item.icon}</span>
+            <span className="truncate w-full">{item.label}</span>
+          </NavLink>
+        ))}
+      </nav>
 
       {/* ===== Main Content ===== */}
       <main 
