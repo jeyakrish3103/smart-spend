@@ -143,7 +143,7 @@ export default function ExpensesPage() {
             ) : (
               '🧾'
             )}{' '}
-            AI Receipt
+            📸 AI Image Receipt
             <input 
               type="file" 
               accept="image/*,application/pdf" 

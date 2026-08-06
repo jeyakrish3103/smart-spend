@@ -156,9 +156,16 @@ export default function Layout({ children }) {
         
         {/* Content area */}
         <div 
-          className="px-5 md:px-8 pb-8 pt-20 md:pt-0 flex-1" 
+          className="px-4 md:px-8 pb-8 pt-24 md:pt-0 flex-1" 
           style={{ width: '100%' }}
         >
+          {/* Mobile Title */}
+          <div className="md:hidden mb-5">
+            <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)', color: 'var(--color-base-50)' }}>
+              {pageTitle}
+            </h1>
+          </div>
+
           <div className="animate-fade-in" style={{ width: '100%' }}>
             {children}
           </div>
